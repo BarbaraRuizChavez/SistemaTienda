@@ -10,13 +10,20 @@ namespace SistemaTienda.Backend
 {
     public class clsConexion
     {
-        private readonly string cadenaConexion = "server=localhost; database=sistema_tienda; user=root; pwd=b2r4c6h8";
+        private readonly string cadenaConexion = "server=localhost; database=sistema_tienda; user=root; pwd=root";
 
-        public MySqlConnection ObtenerConexion()
-        {
-            MySqlConnection cn = new MySqlConnection(cadenaConexion);
-            cn.Open();
-            return cn;
-        }
-    }
+		public MySqlConnection ObtenerConexion()
+		{
+			try
+			{
+				MySqlConnection cn = new MySqlConnection(cadenaConexion);
+				cn.Open();
+				return cn;
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Error al conectar con la base de datos: {ex.Message}");
+			}
+		}
+	}
 }
