@@ -7,104 +7,207 @@ namespace SistemaTienda.Frontend
 {
     public partial class FrmPrincipal : Form
     {
-        public FrmPrincipal()
+		private clsProductosDAL productosDAL;
+		public FrmPrincipal()
         {
             InitializeComponent();
             InicializarDataGridView();
-        }
+			productosDAL = new clsProductosDAL();
+		}
 
 
-        private void InicializarDataGridView()
-        {
-            dgvProductos.Columns.Clear();
+		private void InicializarDataGridView()
+		{
+			dgvProductos.Columns.Clear();
 
-            dgvProductos.Columns.Add("Clave", "Clave");
-            dgvProductos.Columns.Add("Nombre", "Nombre");
-            dgvProductos.Columns.Add("Precio", "Precio");
-            dgvProductos.Columns.Add("Stock", "Stock");
-            dgvProductos.Columns.Add("Descripcion", "Descripción");
-            dgvProductos.Columns.Add("Disponibilidad", "Disponible");
+			// Configurar columnas
+			dgvProductos.Columns.Add("Clave", "Clave");
+			dgvProductos.Columns.Add("Nombre", "Nombre");
+			dgvProductos.Columns.Add("Precio", "Precio");
+			dgvProductos.Columns.Add("Stock", "Stock");
+			dgvProductos.Columns.Add("Descripcion", "Descripción");
+			dgvProductos.Columns.Add("Disponibilidad", "Disponible");
 
-            dgvProductos.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dgvProductos.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
-            dgvProductos.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvProductos.ReadOnly = true;
-            dgvProductos.AllowUserToAddRows = false;
-        }
+			// Mejorar apariencia
+			dgvProductos.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+			dgvProductos.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+			dgvProductos.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+			dgvProductos.ReadOnly = true;
+			dgvProductos.AllowUserToAddRows = false;
+			dgvProductos.RowHeadersVisible = false;
 
-        private void BuscarProductoPorCodigo(string codigo)
-        {
-            if (string.IsNullOrWhiteSpace(codigo))
-            {
-                MessageBox.Show("Por favor ingresa un código de barras.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+			// Formato de columnas
+			dgvProductos.Columns["Precio"].DefaultCellStyle.Format = "C2";
+			dgvProductos.Columns["Precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+			dgvProductos.Columns["Stock"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+		}
 
-            foreach (DataGridViewRow fila in dgvProductos.Rows)
-            {
-                if (fila.Cells["Clave"].Value != null && fila.Cells["Clave"].Value.ToString() == codigo)
-                {
-                    MessageBox.Show("Este producto ya fue agregado al listado.", "Producto duplicado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-            }
+		private void BuscarProductoPorCodigo(string codigo)
+		{
+			try
+			{
+				// Validación básica
+				if (string.IsNullOrWhiteSpace(codigo))
+				{
+					MostrarMensaje("Por favor ingresa un código de barras.", TipoMensaje.Informacion);
+					return;
+				}
 
-            clsProductosDAL dal = new clsProductosDAL();
-            var producto = dal.BuscarPorClave(codigo);
+				// Verificar si ya está en el grid
+				if (productosDAL.ProductoYaEnGrid(codigo, dgvProductos))
+				{
+					MostrarMensaje("Este producto ya fue agregado al listado.", TipoMensaje.Advertencia);
+					return;
+				}
 
-            if (producto != null)
-            {
-                dgvProductos.Rows.Add(
-                    producto.Clave,
-                    producto.Nombre,
-                    producto.Precio,
-                    producto.Stock,
-                    producto.Descripcion,
-                    producto.Disponibilidad ? "Sí" : "No"
-                );
+				// Buscar en la base de datos
+				var producto = productosDAL.BuscarPorClave(codigo);
 
-                txtClave.Clear();
-                txtClave.Focus();
-            }
-            else
-            {
-                MessageBox.Show("Producto no encontrado en la base de datos.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
+				if (producto != null)
+				{
+					// Validar disponibilidad
+					if (!producto.Disponibilidad)
+					{
+						MostrarMensaje("Este producto está descontinuado y no se puede agregar.", TipoMensaje.Advertencia);
+						return;
+					}
 
-        private void btnBuscar_Click(object sender, EventArgs e)
+					// Agregar al grid
+					AgregarProductoAlGrid(producto);
+
+					// Limpiar y enfocar
+					txtClave.Clear();
+					txtClave.Focus();
+
+					MostrarMensaje("Producto agregado correctamente.", TipoMensaje.Exito);
+				}
+				else
+				{
+					MostrarMensaje("Producto no encontrado en la base de datos.", TipoMensaje.Error);
+				}
+			}
+			catch (Exception ex)
+			{
+				MostrarMensaje($"Error: {ex.Message}", TipoMensaje.Error);
+			}
+		}
+
+		private void AgregarProductoAlGrid(clsProducto producto)
+		{
+			int rowIndex = dgvProductos.Rows.Add(
+				producto.Clave,
+				producto.Nombre,
+				producto.Precio,
+				producto.Stock,
+				producto.Descripcion,
+				producto.Disponibilidad ? "Sí" : "No"
+			);
+
+			// Resaltar la nueva fila agregada
+			if (rowIndex >= 0)
+			{
+				dgvProductos.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightGreen;
+				dgvProductos.FirstDisplayedScrollingRowIndex = rowIndex;
+			}
+		}
+
+		private void btnBuscar_Click(object sender, EventArgs e)
         {
             BuscarProductoPorCodigo(txtClave.Text.Trim());
         }
 
         private void btnDescontinuar_Click(object sender, EventArgs e)
         {
-            if (dgvProductos.CurrentRow != null)
-            {
-                string clave = dgvProductos.CurrentRow.Cells["Clave"].Value.ToString();
-                string disponibilidad = dgvProductos.CurrentRow.Cells["Disponibilidad"].Value.ToString();
+			try
+			{
+				if (dgvProductos.CurrentRow == null)
+				{
+					MostrarMensaje("Por favor seleccione un producto del listado.", TipoMensaje.Informacion);
+					return;
+				}
 
-                if (disponibilidad == "No")
-                {
-                    MessageBox.Show("Este producto ya está descontinuado.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+				string clave = dgvProductos.CurrentRow.Cells["Clave"].Value?.ToString();
+				string disponibilidad = dgvProductos.CurrentRow.Cells["Disponibilidad"].Value?.ToString();
 
-                clsProductosDAL dal = new clsProductosDAL();
-                if (dal.DescontinuarProducto(clave))
-                {
-                    MessageBox.Show("Producto descontinuado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    dgvProductos.CurrentRow.Cells["Disponibilidad"].Value = "No";
-                    dgvProductos.CurrentRow.DefaultCellStyle.ForeColor = Color.Gray;
-                }
-                else
-                {
-                    MessageBox.Show("Error al descontinuar el producto.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }
-    }
+				if (string.IsNullOrEmpty(clave))
+				{
+					MostrarMensaje("No se puede identificar el producto seleccionado.", TipoMensaje.Error);
+					return;
+				}
+
+				// Validar si ya está descontinuado en el grid
+				if (disponibilidad == "No")
+				{
+					MostrarMensaje("Este producto ya está descontinuado.", TipoMensaje.Advertencia);
+					return;
+				}
+
+				// Confirmar acción
+				DialogResult resultado = MessageBox.Show(
+					$"¿Está seguro de descontinuar el producto '{dgvProductos.CurrentRow.Cells["Nombre"].Value}'?",
+					"Confirmar Descontinuación",
+					MessageBoxButtons.YesNo,
+					MessageBoxIcon.Question);
+
+				if (resultado == DialogResult.Yes)
+				{
+					// Ejecutar descontinuación con transacción
+					if (productosDAL.DescontinuarProducto(clave))
+					{
+						// Actualizar grid
+						dgvProductos.CurrentRow.Cells["Disponibilidad"].Value = "No";
+						dgvProductos.CurrentRow.DefaultCellStyle.ForeColor = Color.Gray;
+						dgvProductos.CurrentRow.DefaultCellStyle.BackColor = Color.LightGray;
+
+						MostrarMensaje("Producto descontinuado correctamente.", TipoMensaje.Exito);
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				MostrarMensaje(ex.Message, TipoMensaje.Error);
+			}
+		}
+
+		// Método auxiliar para mostrar mensajes consistentes
+		private void MostrarMensaje(string mensaje, TipoMensaje tipo)
+		{
+			MessageBoxIcon icono = MessageBoxIcon.Information;
+			string titulo = "Información";
+
+			switch (tipo)
+			{
+				case TipoMensaje.Exito:
+					icono = MessageBoxIcon.Information;
+					titulo = "Éxito";
+					break;
+				case TipoMensaje.Error:
+					icono = MessageBoxIcon.Error;
+					titulo = "Error";
+					break;
+				case TipoMensaje.Advertencia:
+					icono = MessageBoxIcon.Warning;
+					titulo = "Advertencia";
+					break;
+				case TipoMensaje.Informacion:
+					icono = MessageBoxIcon.Information;
+					titulo = "Información";
+					break;
+			}
+
+			MessageBox.Show(mensaje, titulo, MessageBoxButtons.OK, icono);
+		}
+
+		// Enumeración para tipos de mensaje
+		private enum TipoMensaje
+		{
+			Exito,
+			Error,
+			Advertencia,
+			Informacion
+		}
+	}
 }
-
+    
 
 
