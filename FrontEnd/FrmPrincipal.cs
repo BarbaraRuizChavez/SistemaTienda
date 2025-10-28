@@ -22,7 +22,6 @@ namespace SistemaTienda.Frontend
 		{
 			dgvProductos.Columns.Clear();
 
-			// Configurar columnas
 			dgvProductos.Columns.Add("Clave", "Clave");
 			dgvProductos.Columns.Add("Nombre", "Nombre");
 			dgvProductos.Columns.Add("Precio", "Precio");
@@ -30,7 +29,6 @@ namespace SistemaTienda.Frontend
 			dgvProductos.Columns.Add("Descripcion", "Descripción");
 			dgvProductos.Columns.Add("Disponibilidad", "Disponible");
 
-			// Mejorar apariencia
 			dgvProductos.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 			dgvProductos.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
 			dgvProductos.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
@@ -38,7 +36,6 @@ namespace SistemaTienda.Frontend
 			dgvProductos.AllowUserToAddRows = false;
 			dgvProductos.RowHeadersVisible = false;
 
-			// Formato de columnas
 			dgvProductos.Columns["Precio"].DefaultCellStyle.Format = "C2";
 			dgvProductos.Columns["Precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 			dgvProductos.Columns["Stock"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
@@ -48,36 +45,30 @@ namespace SistemaTienda.Frontend
 		{
 			try
 			{
-				// Validación básica
 				if (string.IsNullOrWhiteSpace(codigo))
 				{
 					MostrarMensaje("Por favor ingresa un código de barras.", TipoMensaje.Informacion);
 					return;
 				}
 
-				// Verificar si el producto esta en el grid
 				if (productosDAL.ProductoYaEnGrid(codigo, dgvProductos))
 				{
 					MostrarMensaje("Este producto ya fue agregado al listado.", TipoMensaje.Advertencia);
 					return;
 				}
 
-				// Buscar en la base de datos
 				var producto = productosDAL.BuscarPorClave(codigo);
 
 				if (producto != null)
 				{
-					// Validar disponibilidad
 					if (!producto.Disponibilidad)
 					{
 						MostrarMensaje("Este producto está descontinuado y no se puede agregar.", TipoMensaje.Advertencia);
 						return;
 					}
 
-					// Agregar al grid
 					AgregarProductoAlGrid(producto);
 
-					// Limpiar y enfocar
 					txtClave.Clear();
 					txtClave.Focus();
 
@@ -127,7 +118,6 @@ namespace SistemaTienda.Frontend
 					return;
 				}
 
-				// Obtener todas las claves de productos disponibles del grid
 				List<string> clavesDescontinuar = new List<string>();
 				foreach (DataGridViewRow fila in dgvProductos.Rows)
 				{
@@ -148,7 +138,6 @@ namespace SistemaTienda.Frontend
 					return;
 				}
 
-				// Mostrar resumen de productos a descontinuar
 				string mensajeConfirmacion = $"¿Está seguro de descontinuar {clavesDescontinuar.Count} productos?\n\n" +
 										   "Esta acción no se puede deshacer y afectará a todos los productos seleccionados.";
 
@@ -160,10 +149,8 @@ namespace SistemaTienda.Frontend
 
 				if (resultado == DialogResult.Yes)
 				{
-					// Ejecutar descontinuación
 					if (productosDAL.DescontinuarProductos(clavesDescontinuar))
 					{
-						// Actualizar visualización del grid
 						foreach (DataGridViewRow fila in dgvProductos.Rows)
 						{
 							if (fila.Cells["Disponibilidad"].Value?.ToString() == "Sí")
@@ -184,7 +171,6 @@ namespace SistemaTienda.Frontend
 			}
 		}
 
-		// Método para mostrar mensajes
 		private void MostrarMensaje(string mensaje, TipoMensaje tipo)
 		{
 			MessageBoxIcon icono = MessageBoxIcon.Information;
@@ -213,7 +199,6 @@ namespace SistemaTienda.Frontend
 			MessageBox.Show(mensaje, titulo, MessageBoxButtons.OK, icono);
 		}
 
-		// Tipos de mensaje
 		private enum TipoMensaje
 		{
 			Exito,
@@ -224,7 +209,6 @@ namespace SistemaTienda.Frontend
 
 		private void txtClave_KeyPress(object sender, KeyPressEventArgs e)
 		{
-			// Procesamiento automático
 			if (procesamientoAutomatico && e.KeyChar == (char)Keys.Enter)
 			{
 				e.Handled = true;
@@ -241,7 +225,6 @@ namespace SistemaTienda.Frontend
 
 			try
 			{
-				// Usar el método de procesamiento
 				var producto = productosDAL.ProcesarCodigoBarras(codigo, dgvProductos);
 
 				if (producto != null)
@@ -260,7 +243,6 @@ namespace SistemaTienda.Frontend
 				}
 				else
 				{
-					// Si el producto no se encontró o ya está en el grid
 					if (productosDAL.ProductoYaEnGrid(codigo, dgvProductos))
 					{
 						MostrarMensajeRapido("⚠ Producto ya en lista");

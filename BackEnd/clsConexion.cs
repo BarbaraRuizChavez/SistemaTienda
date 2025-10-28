@@ -10,7 +10,7 @@ namespace SistemaTienda.Backend
 {
     public class clsConexion
     {
-        private readonly string cadenaConexion = "server=localhost; database=sistema_tienda; user=root; pwd=root";
+        private readonly string cadenaConexion = "server=localhost; database=sistema_tienda; user=root; pwd=b2r4c6h8";
 
 		public MySqlConnection ObtenerConexion()
 		{

@@ -13,7 +13,6 @@ namespace SistemaTienda.Backend
     {
         private readonly clsConexion conexion = new clsConexion();
 
-		// Buscar producto por clave
 		public clsProducto BuscarPorClave(string clave)
 		{
 			if (string.IsNullOrWhiteSpace(clave))
@@ -46,7 +45,6 @@ namespace SistemaTienda.Backend
 			}
 		}
 
-		// Verificar si producto ya existe en el grid
 		public bool ProductoYaEnGrid(string clave, DataGridView grid)
 		{
 			foreach (DataGridViewRow fila in grid.Rows)
@@ -57,7 +55,6 @@ namespace SistemaTienda.Backend
 			return false;
 		}
 
-		// Descontinuar productos 
 		public bool DescontinuarProductos(List<string> claves)
 		{
 			if (claves == null || claves.Count == 0)
@@ -71,7 +68,6 @@ namespace SistemaTienda.Backend
 				cn = conexion.ObtenerConexion();
 				trans = cn.BeginTransaction();
 
-				// Verificar que todos los productos existen y están disponibles
 				foreach (string clave in claves)
 				{
 					string sqlVerificar = "SELECT Disponibilidad FROM productos WHERE Clave = @Clave";
@@ -92,7 +88,6 @@ namespace SistemaTienda.Backend
 					}
 				}
 
-				// Actualizar los productos
 				string sqlActualizar = "UPDATE productos SET Disponibilidad = FALSE WHERE Clave IN (" +
 									  string.Join(",", claves.ConvertAll(c => $"'{c}'").ToArray()) + ")";
 
@@ -109,18 +104,17 @@ namespace SistemaTienda.Backend
 			}
 			catch (Exception ex)
 			{
-				trans?.Rollback();
+				trans.Rollback();
 				throw new Exception($"Error al descontinuar productos: {ex.Message}");
 			}
 			finally
 			{
-				trans?.Dispose();
-				cn?.Close();
-				cn?.Dispose();
+				trans.Dispose();
+				cn.Close();
+				cn.Dispose();
 			}
 		}
 
-		// Método para procesar el código de barras
 		public clsProducto ProcesarCodigoBarras(string codigo, DataGridView grid)
 		{
 			try
