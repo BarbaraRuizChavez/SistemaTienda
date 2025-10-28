@@ -13,7 +13,7 @@ namespace SistemaTienda.Backend
     {
         private readonly clsConexion conexion = new clsConexion();
 
-		// Buscar producto por clave con validación de disponibilidad
+		// Buscar producto por clave
 		public clsProducto BuscarPorClave(string clave)
 		{
 			if (string.IsNullOrWhiteSpace(clave))
@@ -46,7 +46,7 @@ namespace SistemaTienda.Backend
 			}
 		}
 
-		// Verificar si producto ya existe en grid
+		// Verificar si producto ya existe en el grid
 		public bool ProductoYaEnGrid(string clave, DataGridView grid)
 		{
 			foreach (DataGridViewRow fila in grid.Rows)
@@ -57,10 +57,10 @@ namespace SistemaTienda.Backend
 			return false;
 		}
 
-		// Descontinuar producto
-		public bool DescontinuarProducto(string clave)
+		// Descontinuar productos 
+		public bool DescontinuarProductos(List<string> claves)
 		{
-			if (string.IsNullOrWhiteSpace(clave))
+			if (claves == null || claves.Count == 0)
 				return false;
 
 			MySqlConnection cn = null;
@@ -71,34 +71,37 @@ namespace SistemaTienda.Backend
 				cn = conexion.ObtenerConexion();
 				trans = cn.BeginTransaction();
 
-				// Verificar si el producto existe y está disponible
-				string sqlVerificar = "SELECT Disponibilidad FROM productos WHERE Clave = @Clave";
-				MySqlCommand cmdVerificar = new MySqlCommand(sqlVerificar, cn, trans);
-				cmdVerificar.Parameters.AddWithValue("@Clave", clave);
-
-				var resultado = cmdVerificar.ExecuteScalar();
-
-				if (resultado == null)
+				// Verificar que todos los productos existen y están disponibles
+				foreach (string clave in claves)
 				{
-					throw new Exception("Producto no encontrado");
+					string sqlVerificar = "SELECT Disponibilidad FROM productos WHERE Clave = @Clave";
+					MySqlCommand cmdVerificar = new MySqlCommand(sqlVerificar, cn, trans);
+					cmdVerificar.Parameters.AddWithValue("@Clave", clave);
+
+					var resultado = cmdVerificar.ExecuteScalar();
+
+					if (resultado == null)
+					{
+						throw new Exception($"Producto con clave {clave} no encontrado");
+					}
+
+					bool estaDisponible = Convert.ToBoolean(resultado);
+					if (!estaDisponible)
+					{
+						throw new Exception($"El producto {clave} ya está descontinuado");
+					}
 				}
 
-				bool estaDisponible = Convert.ToBoolean(resultado);
-				if (!estaDisponible)
-				{
-					throw new Exception("El producto ya está descontinuado");
-				}
+				// Actualizar los productos
+				string sqlActualizar = "UPDATE productos SET Disponibilidad = FALSE WHERE Clave IN (" +
+									  string.Join(",", claves.ConvertAll(c => $"'{c}'").ToArray()) + ")";
 
-				// Actualizar disponibilidad
-				string sqlActualizar = "UPDATE productos SET Disponibilidad = FALSE WHERE Clave = @Clave";
 				MySqlCommand cmdActualizar = new MySqlCommand(sqlActualizar, cn, trans);
-				cmdActualizar.Parameters.AddWithValue("@Clave", clave);
-
 				int filasAfectadas = cmdActualizar.ExecuteNonQuery();
 
-				if (filasAfectadas == 0)
+				if (filasAfectadas != claves.Count)
 				{
-					throw new Exception("No se pudo actualizar el producto");
+					throw new Exception($"No se pudieron actualizar todos los productos. Esperados: {claves.Count}, Actualizados: {filasAfectadas}");
 				}
 
 				trans.Commit();
@@ -107,13 +110,33 @@ namespace SistemaTienda.Backend
 			catch (Exception ex)
 			{
 				trans?.Rollback();
-				throw new Exception($"Error al descontinuar producto: {ex.Message}");
+				throw new Exception($"Error al descontinuar productos: {ex.Message}");
 			}
 			finally
 			{
 				trans?.Dispose();
 				cn?.Close();
 				cn?.Dispose();
+			}
+		}
+
+		// Método para procesar el código de barras
+		public clsProducto ProcesarCodigoBarras(string codigo, DataGridView grid)
+		{
+			try
+			{
+				if (string.IsNullOrWhiteSpace(codigo))
+					return null;
+
+				if (ProductoYaEnGrid(codigo, grid))
+					return null;
+
+				var producto = BuscarPorClave(codigo);
+				return producto;
+			}
+			catch (Exception)
+			{
+				return null;
 			}
 		}
 	}
